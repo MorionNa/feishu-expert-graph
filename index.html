@@ -84,7 +84,7 @@
         <div class="modal">
           <h2>飞书数据表配置</h2>
           <p class="small-help">默认兼容你当前的三张表。只在本次页面会话中使用这些名称，不写入浏览器本地存储。</p>
-          <label for="table-experts">专家信息表名称</label><input id="table-experts" type="text" value="专家信息表" />
+          <label for="base-token">多维表格 Base 标识（从飞书私有表格 URL 的 /base/ 后复制）</label><input id="base-token" type="text" autocomplete="off" placeholder="例如 WIFLb..." /><p class="small-help">只存储表格标识，不是密钥。请不要填写整个公开网址。</p><label for="table-experts">专家信息表名称</label><input id="table-experts" type="text" value="专家信息表" />
           <label for="table-careers">身份与履历表名称</label><input id="table-careers" type="text" value="身份和履历表" />
           <label for="table-relations">人员关系表名称</label><input id="table-relations" type="text" value="人员关系表" />
           <div class="modal-actions"><button id="settings-cancel" class="btn btn-ghost">取消</button><button id="settings-save" class="btn btn-primary">保存并读取</button></div>
