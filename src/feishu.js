@@ -9,7 +9,13 @@ export async function readFeishu(config){
     if(!meta){if(key==='careers'){output[key]=[];continue;}throw Error('未找到数据表：'+config[key]);}
     const table=await bitable.base.getTableById(meta.id);
     const fields=await table.getFieldMetaList();
-    const ids=await table.getRecordIdList();
+    const ids=[];
+    let pageToken;
+    do {
+      const page=await table.getRecordIdListByPage({pageSize:200,...(pageToken?{pageToken}:{})});
+      ids.push(...(page.recordIds||page.records||[]));
+      pageToken=page.hasMore?page.pageToken:undefined;
+    } while(pageToken);
     output[key]=[];
     for(let i=0;i<ids.length;i+=30){
       const chunk=ids.slice(i,i+30);
