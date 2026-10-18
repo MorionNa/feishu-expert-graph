@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cellText, linkedRecordIds, normalizeGraph, shortestPath, visibleEdges, fakeDemo } from '../src/graph-data.js';
+import { cellText, linkedRecordIds, normalizeGraph, shortestPath, fakeDemo } from '../src/graph-data.js';
 
 test('cell value parses rich text, options, lookup and link', () => {
   assert.equal(cellText([{text:'教授'},{text:'院长'}]), '教授、院长');
@@ -19,15 +19,11 @@ test('links records by immutable Feishu record IDs rather than duplicate names',
   assert.equal(shortestPath(data.persons,data.edges,'P0002','P0001'),null);
   assert.equal(shortestPath(data.persons,data.edges,'P0001','P0002').hops,1);
 });
-test('pending and ended edges excluded unless explicitly included', () => {
-  const data=fakeDemo();
-  assert.equal(visibleEdges(data.edges).length,2);
-  assert.equal(visibleEdges(data.edges,true).length,3);
-  assert.equal(shortestPath(data.persons,visibleEdges(data.edges),'P0001','P0003').hops,2);
-  assert.equal(shortestPath(data.persons,visibleEdges(data.edges,true),'P0001','P0003').hops,1);
-  data.edges[0].state='ended';
-  assert.equal(visibleEdges(data.edges).length,1);
-  assert.equal(shortestPath(data.persons,visibleEdges(data.edges),'P0001','P0003'),null);
+test('every recorded edge is displayed and used in path finding', () => {
+  const data = fakeDemo();
+  assert.equal(data.edges.length, 3);
+  assert.equal(shortestPath(data.persons, data.edges, 'P0001', 'P0003').hops, 1);
+  assert.equal(shortestPath(data.persons, data.edges, 'P0003', 'P0002'), null);
 });
 test('career current fallback and unknown status fail closed', () => {
   const p=[{recordId:'recP',fields:{人员ID:'P0001',姓名:'李某'}}];
@@ -52,6 +48,5 @@ test('handles alternate Feishu link shapes and provides explicit diagnostics', (
   assert.equal(result.diagnostics.relationsRead,2);
   assert.equal(result.diagnostics.relationsResolved,1);
   assert.equal(result.diagnostics.relationsUnresolved,1);
-  assert.equal(result.diagnostics.status.valid,1);
-  assert.equal(visibleEdges(result.edges).length,1);
+  assert.equal(result.edges.length,1);
 });
