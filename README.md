@@ -54,3 +54,7 @@
 飞书应用页面的仪表盘展示模式可能不允许 `bitable.base.getTableMetaList()` / `getRecordsByPage()`；遇到 `this api is only supported in config mode` 时不能只重试。当前实现优先通过配置时保存的 `baseToken` 使用 `workspace.getBitable(baseToken)` 的授权接口读取原始记录；旧组件尚未绑定 token 时仅检索已授权工作区的**表名元数据**并要求唯一匹配。多库重名或权限不足时明确报错，不静默读取其他专家库。
 
 如果依然不支持，下一步需要改用飞书开放平台的后端授权接口（密钥只放服务端，绝不能放进 GitHub Pages）。该展示态读取方式需在实际飞书宿主验证。
+
+## 展示模式故障排查（2026-10）
+
+如果保存后报 `this api is only supported in config mode`，说明视图模式调用到了仅配置态可用的 API。最新实现不会在展示态枚举工作区；需在飞书应用的组件编辑配置里通过「数据设置」填入该专家库多维表格 URL 中 `/base/` 后的 Base 标识，再点击「保存并添加到页面」。组件只保存 Base 标识（不是访问密钥）。之后展示态先尝试 `workspace.getBitable(baseToken)` 读取授权数据。**该能力是否受当前飞书租户/应用模式权限支持，仍须在真实展示态验证**；如果 `workspace.getBitable` 同样被限制，就需要改为受鉴权保护的服务端飞书 OpenAPI 接口，不能通过静态 GitHub Pages 端暴露令牌。不要将个人信息写入公开仓库。
