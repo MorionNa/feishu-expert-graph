@@ -1,10 +1,10 @@
 import cytoscape from 'cytoscape';
 import { bitable, DashboardState } from '@lark-base-open/js-sdk';
-import {readFeishu} from './feishu.js';
+import {readFeishu, detectBaseTokenForConfig} from './feishu.js';
 import {normalizeGraph,visibleEdges,shortestPath,fakeDemo} from './graph-data.js';
 import './style.css';
 const $=id=>document.getElementById(id);
-const state={data:null,cy:null,loading:false,lastFetchAt:0,config:{experts:'专家信息表',careers:'身份和履历表',relations:'人员关系表'}};
+const state={data:null,cy:null,loading:false,lastFetchAt:0,config:{experts:'专家信息表',careers:'身份和履历表',relations:'人员关系表',baseToken:''}};
 const text=(id,val)=>{$(id).textContent=val??'';};
 const notice=(val,error=false)=>{text('notice',val);$('notice').className='notice '+(error?'error':'success');};
 const line=(root,label,value)=>{const el=document.createElement('div');el.className='detail-row';const a=document.createElement('div');a.className='detail-label';a.textContent=label;const b=document.createElement('div');b.className='detail-value';b.textContent=value||'暂无';el.append(a,b);root.append(el);};
@@ -23,6 +23,7 @@ async function load(){
   }
   try {
     const rows=await readFeishu(state.config);
+    if (rows.discoveredToken) state.config.baseToken=rows.discoveredToken;
     render(normalizeGraph(rows.experts,rows.relations,rows.careers),false);
     state.lastFetchAt=Date.now();
   } catch(err) {
@@ -54,6 +55,7 @@ function applySavedConfig(saved) {
   for (const key of ['experts','careers','relations']) {
     if (typeof source[key] === 'string' && source[key].trim()) state.config[key] = source[key].trim();
   }
+  if (typeof source.baseToken === 'string' && source.baseToken) state.config.baseToken = source.baseToken;
   $('table-experts').value = state.config.experts;
   $('table-careers').value = state.config.careers;
   $('table-relations').value = state.config.relations;
@@ -70,9 +72,10 @@ async function saveDashboardComponent() {
     // The relationship graph reads three raw tables by SDK, not an aggregated chart.
     // Official Feishu dashboard plugin examples allow empty dataConditions when
     // all custom settings and data fetching are handled by the plugin.
+    state.config.baseToken=await detectBaseTokenForConfig(state.config);
     await dashboard.saveConfig({
       dataConditions: [],
-      customConfig: { version: 1, tables: { ...state.config } }
+      customConfig: { version: 2, tables: { ...state.config } }
     });
     notice('配置已提交给飞书。如弹窗没有自动关闭，请关闭它并检查应用页面画布中是否出现图谱组件。');
     text('dashboard-save-btn','已保存到飞书');
