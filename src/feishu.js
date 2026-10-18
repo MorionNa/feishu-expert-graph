@@ -111,8 +111,10 @@ async function getAuthorizedBase(config) {
   throw new Error('展示模式缺少已保存的 Base 标识。请编辑组件 → 数据设置，填写专家库 Base 标识，点击「保存并添加到页面」重新绑定。');
 }
 
-async function readTable(table, meta) {
-  const fields = await table.getFieldMetaList();
+async function readTable(table, meta, boundFields) {
+  const fields = Array.isArray(boundFields) && boundFields.length
+    ? boundFields
+    : await table.getFieldMetaList();
   let token;
   const all = [];
   do {
@@ -155,6 +157,32 @@ export async function detectBaseTokenForConfig(config) {
   }
 }
 
+/** Bind exact table and field IDs while the dashboard is in Create/Config.
+ *  A saved component in View mode cannot invoke table metadata APIs.
+ */
+export async function captureTableBindings(config) {
+  if (!isDashboardConfigMode()) {
+    throw new Error('绑定表结构必须在飞书组件「编辑配置」模式中完成。');
+  }
+  const metas = await listMeta(bitable.base);
+  const bindings = {};
+  for (const key of ['experts', 'relations', 'careers']) {
+    const meta = metas.find(t => tableNames(config, key).includes(t.name));
+    if (!meta) {
+      if (key === 'careers') continue;
+      throw new Error('找不到数据表「' + config[key] + '」');
+    }
+    const table = await bitable.base.getTableById(meta.id);
+    const fields = await table.getFieldMetaList();
+    bindings[key] = {
+      tableId: meta.id,
+      tableName: meta.name,
+      fields: fields.map(f => ({id: f.id, name: f.name}))
+    };
+  }
+  return bindings;
+}
+
 export async function readFeishu(config) {
   let baseInfo;
   try {
@@ -163,21 +191,31 @@ export async function readFeishu(config) {
     throw new Error('无法访问飞书表格：' + (err?.message || String(err)));
   }
   const { base } = baseInfo;
-  let metas;
-  try { metas = baseInfo.metas || await listMeta(base); }
-  catch (err) { throw new Error('读取数据表元信息失败：' + (err?.message || String(err))); }
+  const viewing = !isDashboardConfigMode();
+  let metas = [];
+  if (!viewing) {
+    try { metas = baseInfo.metas || await listMeta(base); }
+    catch (err) { throw new Error('配置模式读取表格元信息失败：' + (err?.message || String(err))); }
+  } else if (!config.tableBindings?.experts || !config.tableBindings?.relations) {
+    throw new Error('展示模式未绑定表ID和字段ID。请进入图谱组件「编辑配置」，点击「保存并添加到页面」以完成一次性绑定。');
+  }
   const output = { experts: [], relations: [], careers: [] };
   for (const key of ['experts', 'relations', 'careers']) {
-    const meta = metas.find(t => tableNames(config, key).includes(t.name));
+    const bound = config.tableBindings?.[key];
+    const meta = viewing
+      ? (bound ? {id:bound.tableId,name:bound.tableName} : null)
+      : metas.find(t => tableNames(config, key).includes(t.name));
     if (!meta) {
       if (key === 'careers') continue;
       throw new Error('找不到数据表「' + config[key] + '」，请检查数据设置。');
     }
     try {
       const table = await base.getTableById(meta.id);
-      output[key] = await readTable(table, meta);
+      // In View mode do not read metadata: use the field IDs persisted from
+      // the authorized Config-mode setup. Only records are read.
+      output[key] = await readTable(table, meta, viewing ? bound.fields : null);
     } catch (err) {
-      throw new Error('读取「' + meta.name + '」失败：' + (err?.message || String(err)));
+      throw new Error('读取「' + meta.name + '」的记录失败：' + (err?.message || String(err)));
     }
   }
   return { ...output, discoveredToken: baseInfo.discoveredToken || '' };
