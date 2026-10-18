@@ -44,13 +44,6 @@ function strField(record, aliases) {
   return cellText(field(record, aliases)).trim();
 }
 
-function normalizedState(value) {
-  const v = cellText(value).replace(/\s/g, '');
-  if (['有效', '已确认', '确认', '正常', '已核实', '已确认有效', '关系有效', '仍有联系', '存在'].includes(v)) return 'valid';
-  if (['已失效', '失效', '已结束', '已撤销', '不存在'].includes(v)) return 'ended';
-  return 'pending';
-}
-
 function normalizedDirection(value) {
   const v = cellText(value).replace(/\s/g, '').toUpperCase();
   if (['A→B', 'A->B', 'A到B', 'A至B', '人员A→人员B'].includes(v)) return 'ab';
@@ -72,7 +65,6 @@ export function normalizeGraph(expertRows, relationRows, careerRows = []) {
     relationsResolved: 0,
     relationsUnresolved: 0,
     selfLinks: 0,
-    status: { valid: 0, pending: 0, ended: 0 },
     relationFieldNames: relationRows[0] ? Object.keys(relationRows[0].fields || {}) : []
   };
   const persons = [];
@@ -142,26 +134,18 @@ export function normalizeGraph(expertRows, relationRows, careerRows = []) {
       continue;
     }
     const id = strField(row, ['关系ID']) || String(row.recordId || ('edge-' + edges.length));
-    const status = normalizedState(field(row, ['关系状态', '状态', '核验状态']));
-    diagnostics.status[status]++;
     edges.push({
       id, recordId: row.recordId || '',
       a: a.id, b: b.id,
       type: strField(row, ['关系类型']) || '未分类',
       direction: normalizedDirection(field(row, ['关系方向', '方向'])),
       directionText: strField(row, ['关系方向', '方向']) || '未标注（按双向处理）',
-      state: status,
-      stateText: strField(row, ['关系状态', '状态', '核验状态']) || '待核验',
       confirmedAt: strField(row, ['最后确认日期', '最近核实日期', '核验日期']),
       note: strField(row, ['备注', '关系依据', '信息来源'])
     });
   }
   diagnostics.relationsResolved = edges.length;
   return { persons, edges, warnings, diagnostics };
-}
-
-export function visibleEdges(edges, includePending = false) {
-  return edges.filter(e => e.state === 'valid' || (includePending && e.state === 'pending'));
 }
 
 export function shortestPath(persons, edges, from, to) {
@@ -209,9 +193,9 @@ export function fakeDemo() {
       { id: 'P0003', name: '专家丙', recordId: 'demo-3', domain: '具身智能', current: 'C大学 · 博士生；D公司 · 创始人', careers: [] }
     ],
     edges: [
-      { id: 'R0001', a: 'P0001', b: 'P0002', type: '同学', direction: 'both', directionText: '双向', state: 'valid', stateText: '有效', confirmedAt: '2026-10-01', note: '完全虚构的演示关系' },
-      { id: 'R0002', a: 'P0002', b: 'P0003', type: '引荐', direction: 'ab', directionText: 'A→B', state: 'valid', stateText: '有效', confirmedAt: '2026-10-02', note: '完全虚构的演示关系' },
-      { id: 'R0003', a: 'P0001', b: 'P0003', type: '合作', direction: 'both', directionText: '双向', state: 'pending', stateText: '待核验', confirmedAt: '', note: '演示待核验关系，默认隐藏' }
+      { id: 'R0001', a: 'P0001', b: 'P0002', type: '同学', direction: 'both', directionText: '双向', confirmedAt: '2026-10-01', note: '完全虚构的演示关系' },
+      { id: 'R0002', a: 'P0002', b: 'P0003', type: '引荐', direction: 'ab', directionText: 'A→B', confirmedAt: '2026-10-02', note: '完全虚构的演示关系' },
+      { id: 'R0003', a: 'P0001', b: 'P0003', type: '合作', direction: 'both', directionText: '双向', confirmedAt: '', note: '完全虚构的演示关系' }
     ],
     warnings: []
   };
