@@ -14,11 +14,18 @@ export function cellText(value) {
 }
 
 export function linkedRecordIds(value) {
-  if (!value) return [];
+  if (value == null || value === '') return [];
   if (Array.isArray(value)) return value.flatMap(linkedRecordIds);
+  // Some Feishu versions provide linked record IDs as an array of strings.
+  if (typeof value === 'string') return [value.trim()].filter(Boolean);
   if (typeof value === 'object') {
-    if (Array.isArray(value.recordIds)) return value.recordIds.map(String);
-    if (value.recordId) return [String(value.recordId)];
+    for (const key of ['recordIds', 'link_record_ids', 'record_ids', 'linkedRecordIds']) {
+      if (Array.isArray(value[key])) return value[key].flatMap(linkedRecordIds);
+    }
+    for (const key of ['recordId', 'record_id']) {
+      if (value[key]) return [String(value[key])];
+    }
+    // Do not interpret the visible name/text of a linked record as an identifier.
   }
   return [];
 }
@@ -39,7 +46,7 @@ function strField(record, aliases) {
 
 function normalizedState(value) {
   const v = cellText(value).replace(/\s/g, '');
-  if (['有效', '已确认', '确认', '正常'].includes(v)) return 'valid';
+  if (['有效', '已确认', '确认', '正常', '已核实', '已确认有效', '关系有效', '仍有联系', '存在'].includes(v)) return 'valid';
   if (['已失效', '失效', '已结束', '已撤销', '不存在'].includes(v)) return 'ended';
   return 'pending';
 }
@@ -58,6 +65,16 @@ function currentCareer(value) {
 
 export function normalizeGraph(expertRows, relationRows, careerRows = []) {
   const warnings = [];
+  const diagnostics = {
+    expertsRead: expertRows.length,
+    careersRead: careerRows.length,
+    relationsRead: relationRows.length,
+    relationsResolved: 0,
+    relationsUnresolved: 0,
+    selfLinks: 0,
+    status: { valid: 0, pending: 0, ended: 0 },
+    relationFieldNames: relationRows[0] ? Object.keys(relationRows[0].fields || {}) : []
+  };
   const persons = [];
   const byRecord = new Map();
   const byId = new Map();
@@ -85,9 +102,11 @@ export function normalizeGraph(expertRows, relationRows, careerRows = []) {
   }
 
   function getLinkedPerson(value) {
-    const ids = linkedRecordIds(value);
+    const ids = [...new Set(linkedRecordIds(value))];
+    // One relation endpoint must reference exactly one expert record.
     if (ids.length !== 1) return null;
-    return byRecord.get(ids[0]) || byId.get(ids[0]) || null;
+    const id = ids[0];
+    return byRecord.get(id) || byId.get(id) || null;
   }
 
   for (const row of careerRows) {
@@ -110,26 +129,35 @@ export function normalizeGraph(expertRows, relationRows, careerRows = []) {
 
   const edges = [];
   for (const row of relationRows) {
-    const a = getLinkedPerson(field(row, ['人员A', '起点人员', '关联人员A']));
-    const b = getLinkedPerson(field(row, ['人员B', '终点人员', '关联人员B']));
-    if (!a || !b || a.id === b.id) {
-      warnings.push('一条关系记录缺少有效的两名关联人员，已跳过。');
+    const a = getLinkedPerson(field(row, ['人员A', '起点人员', '关联人员A', '关联人A', '关系起点', '起点']));
+    const b = getLinkedPerson(field(row, ['人员B', '终点人员', '关联人员B', '关联人B', '关系终点', '终点']));
+    if (!a || !b) {
+      diagnostics.relationsUnresolved++;
+      warnings.push('一条关系记录缺少可识别的两名关联人员，已跳过。请检查人员A、人员B是否为关联字段。');
+      continue;
+    }
+    if (a.id === b.id) {
+      diagnostics.selfLinks++;
+      warnings.push('一条关系的起点与终点是同一人，已跳过。');
       continue;
     }
     const id = strField(row, ['关系ID']) || String(row.recordId || ('edge-' + edges.length));
+    const status = normalizedState(field(row, ['关系状态', '状态', '核验状态']));
+    diagnostics.status[status]++;
     edges.push({
       id, recordId: row.recordId || '',
       a: a.id, b: b.id,
       type: strField(row, ['关系类型']) || '未分类',
       direction: normalizedDirection(field(row, ['关系方向', '方向'])),
       directionText: strField(row, ['关系方向', '方向']) || '未标注（按双向处理）',
-      state: normalizedState(field(row, ['关系状态', '状态', '核验状态'])),
+      state: status,
       stateText: strField(row, ['关系状态', '状态', '核验状态']) || '待核验',
       confirmedAt: strField(row, ['最后确认日期', '最近核实日期', '核验日期']),
       note: strField(row, ['备注', '关系依据', '信息来源'])
     });
   }
-  return { persons, edges, warnings };
+  diagnostics.relationsResolved = edges.length;
+  return { persons, edges, warnings, diagnostics };
 }
 
 export function visibleEdges(edges, includePending = false) {
