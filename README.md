@@ -58,3 +58,9 @@
 ## 展示模式故障排查（2026-10）
 
 如果保存后报 `this api is only supported in config mode`，说明视图模式调用到了仅配置态可用的 API。最新实现不会在展示态枚举工作区；需在飞书应用的组件编辑配置里通过「数据设置」填入该专家库多维表格 URL 中 `/base/` 后的 Base 标识，再点击「保存并添加到页面」。组件只保存 Base 标识（不是访问密钥）。之后展示态先尝试 `workspace.getBitable(baseToken)` 读取授权数据。**该能力是否受当前飞书租户/应用模式权限支持，仍须在真实展示态验证**；如果 `workspace.getBitable` 同样被限制，就需要改为受鉴权保护的服务端飞书 OpenAPI 接口，不能通过静态 GitHub Pages 端暴露令牌。不要将个人信息写入公开仓库。
+
+## 2026-10-18 展示模式表结构兼容修复
+
+现有保存版图谱之前报 `读取数据表元信息失败: this api is only supported in config mode`，原因是 View 态调用 `getTableMetaList/getFieldMetaList`。现在在 Create/Config 模式执行 `captureTableBindings`，将三张表的真实 `tableId` 与字段 `fieldId/name` 保存到图谱的 `customConfig.tables.tableBindings`；展示模式不再调用这些元信息 API，而是尝试直接通过保存的 ID 读取记录。**必须回到图谱组件编辑配置重新点击「保存并添加到页面」一次**，旧配置不含 ID 映射，无法自动升级。
+
+如果 View 态仍报 `getRecordsByPage: this api is only supported in config mode`，说明该宿主连原始记录 API 都受限，不能继续用前端 SDK 绕过权限。必须改为飞书正式授权的服务端 OpenAPI 或验证仪表盘聚合 `dashboard.getData` 能否无损传递关系信息。不要将专家库导出放在 GitHub Pages，也不要公开 access_token。
