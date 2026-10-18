@@ -44,6 +44,21 @@ function strField(record, aliases) {
   return cellText(field(record, aliases)).trim();
 }
 
+/** Render the phone/contact field without assuming a single Feishu cell shape.
+ * Contact data is never used as an identifier or network attribute.
+ */
+export function contactText(value) {
+  if (value == null) return '';
+  if (Array.isArray(value)) return value.map(contactText).filter(Boolean).join('、');
+  if (typeof value === 'object') {
+    for (const key of ['text', 'phoneNumber', 'phone_number', 'phone', 'number', 'email', 'value', 'link']) {
+      if (value[key] != null) return contactText(value[key]);
+    }
+    return '';
+  }
+  return String(value).trim();
+}
+
 function normalizedDirection(value) {
   const v = cellText(value).replace(/\s/g, '').toUpperCase();
   if (['A→B', 'A->B', 'A到B', 'A至B', '人员A→人员B'].includes(v)) return 'ab';
@@ -86,6 +101,7 @@ export function normalizeGraph(expertRows, relationRows, careerRows = []) {
       id, recordId: row.recordId, name,
       domain: strField(row, ['研究或业务领域', '研究领域', '业务领域']),
       current: strField(row, ['当前身份与任职', '当前身份']),
+      contact: contactText(field(row, ['联系方式'])),
       careers: []
     };
     persons.push(person);
@@ -189,7 +205,7 @@ export function fakeDemo() {
   return {
     persons: [
       { id: 'P0001', name: '专家甲', recordId: 'demo-1', domain: '结构工程', current: 'A大学 · 教授', careers: [] },
-      { id: 'P0002', name: '专家乙', recordId: 'demo-2', domain: '智慧防灾', current: 'B研究院 · 研究员', careers: [] },
+      { id: 'P0002', name: '专家乙', recordId: 'demo-2', domain: '智慧防灾', current: 'B研究院 · 研究员', contact: 'demo@example.test（虚构）', careers: [] },
       { id: 'P0003', name: '专家丙', recordId: 'demo-3', domain: '具身智能', current: 'C大学 · 博士生；D公司 · 创始人', careers: [] }
     ],
     edges: [
