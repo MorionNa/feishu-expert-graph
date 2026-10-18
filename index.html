@@ -24,7 +24,7 @@
       <section class="stats" aria-label="图谱统计">
         <div class="metric"><span>人员节点</span><strong id="stat-people">—</strong></div>
         <div class="metric"><span>已展示关系</span><strong id="stat-relations">—</strong></div>
-        <div class="metric"><span>隐藏的关系</span><strong id="stat-hidden">—</strong></div>
+        <div class="metric"><span>无法匹配的关系</span><strong id="stat-hidden">—</strong></div>
         <div class="metric"><span>当前数据源</span><strong id="stat-source" class="stat-source">未连接</strong></div>
       </section>
       <div class="workspace">
@@ -33,8 +33,6 @@
             <h2>查找人员</h2>
             <label class="field-label" for="search">姓名 / 人员ID / 研究方向</label>
             <input id="search" type="search" placeholder="输入关键词，高亮匹配节点" />
-            <label class="check"><input id="include-pending" type="checkbox" /> 包含待核验关系</label>
-            <p class="small-help">已失效关系始终隐藏；未知状态默认不纳入搜索路径。</p>
           </section>
           <section class="panel">
             <div class="section-title"><h2>最短关系路径</h2><span class="pill">按关系跳数</span></div>
@@ -48,8 +46,7 @@
           </section>
           <section class="panel legend">
             <h2>图例</h2>
-            <p><i class="line valid"></i> 有效 / 已确认</p>
-            <p><i class="line pending"></i> 待核验（选择后显示）</p>
+            <p><i class="line valid"></i> 已记录的人物关系</p>
             <p><i class="line directed"></i> 带箭头表示有向关系</p>
             <p class="small-help">该图仅呈现已记录的人际关系；共同单位不自动代表互相认识。</p>
           </section>
