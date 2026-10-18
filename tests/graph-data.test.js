@@ -38,3 +38,20 @@ test('career current fallback and unknown status fail closed', () => {
   assert.equal(normalized.edges.length,0);
   assert.ok(normalized.warnings.length>0);
 });
+
+test('handles alternate Feishu link shapes and provides explicit diagnostics', () => {
+  const people=[
+    {recordId:'recOne',fields:{人员ID:'P0001',姓名:'专家甲'}},
+    {recordId:'recTwo',fields:{人员ID:'P0002',姓名:'专家乙'}}
+  ];
+  const relationships=[
+    {recordId:'r1',fields:{人员A:{link_record_ids:['recOne']},人员B:[{record_id:'recTwo'}],关系状态:'已确认有效',关系类型:'合作'}},
+    {recordId:'r2',fields:{人员A:[],人员B:[{record_id:'recTwo'}],关系状态:'有效'}}
+  ];
+  const result=normalizeGraph(people,relationships);
+  assert.equal(result.diagnostics.relationsRead,2);
+  assert.equal(result.diagnostics.relationsResolved,1);
+  assert.equal(result.diagnostics.relationsUnresolved,1);
+  assert.equal(result.diagnostics.status.valid,1);
+  assert.equal(visibleEdges(result.edges).length,1);
+});
