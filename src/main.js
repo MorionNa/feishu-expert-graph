@@ -36,7 +36,7 @@ async function load(){
   }
 }
 function path(){if(!state.cy||!$('from').value||!$('to').value){text('path-result','请选择起点和终点。');return;}const edges=state.data.edges;const result=shortestPath(state.data.persons,edges,$('from').value,$('to').value);state.cy.elements().removeClass('dim highlighted');if(!result){text('path-result','未找到符合当前条件的路径。');return;}text('path-result',result.hops+'跳：'+result.nodes.map(id=>state.data.persons.find(p=>p.id===id)?.name||id).join(' → '));state.cy.elements().addClass('dim');for(const id of result.nodes)state.cy.getElementById(id).removeClass('dim').addClass('highlighted');state.cy.edges().forEach(e=>{if(result.edges.includes(edges[e.data('edgeIndex')]?.id))e.removeClass('dim').addClass('highlighted');});}
-$('reload-btn').onclick=load;$('demo-btn').onclick=()=>render(fakeDemo(),true);$('path-btn').onclick=path;$('clear-path').onclick=()=>{state.cy?.elements().removeClass('dim highlighted');text('path-result','已清除高亮。');};$('fit-btn').onclick=()=>state.cy?.fit(undefined,45);$('layout-btn').onclick=()=>state.cy?.layout({name:'cose',animate:true}).run();$('detail-close').onclick=()=>details(null);$('search').oninput=()=>{if(!state.cy)return;const q=$('search').value.trim().toLowerCase();state.cy.elements().removeClass('dim');if(q)for(const p of state.data.persons)if(![p.name,p.id,p.domain].some(s=>s.toLowerCase().includes(q)))state.cy.getElementById(p.id).addClass('dim');};$('settings-btn').onclick=()=>{$('settings').classList.remove('hidden');};$('settings-cancel').onclick=()=>{$('settings').classList.add('hidden');};$('settings-save').onclick=()=>{state.config.experts=$('table-experts').value;state.config.careers=$('table-careers').value;state.config.relations=$('table-relations').value;$('settings').classList.add('hidden');load();};
+$('reload-btn').onclick=load;$('demo-btn').onclick=()=>render(fakeDemo(),true);$('path-btn').onclick=path;$('clear-path').onclick=()=>{state.cy?.elements().removeClass('dim highlighted');text('path-result','已清除高亮。');};$('fit-btn').onclick=()=>state.cy?.fit(undefined,45);$('layout-btn').onclick=()=>state.cy?.layout({name:'cose',animate:true}).run();$('detail-close').onclick=()=>details(null);$('search').oninput=()=>{if(!state.cy)return;const q=$('search').value.trim().toLowerCase();state.cy.elements().removeClass('dim');if(q)for(const p of state.data.persons)if(![p.name,p.id,p.domain].some(s=>s.toLowerCase().includes(q)))state.cy.getElementById(p.id).addClass('dim');};$('settings-btn').onclick=()=>{$('base-token').value=state.config.baseToken||'';$('settings').classList.remove('hidden');};$('settings-cancel').onclick=()=>{$('settings').classList.add('hidden');};$('settings-save').onclick=()=>{state.config.experts=$('table-experts').value;state.config.careers=$('table-careers').value;state.config.relations=$('table-relations').value;state.config.baseToken=$('base-token').value.trim();$('settings').classList.add('hidden');if(dashboard?.state===DashboardState.Config||dashboard?.state===DashboardState.Create){$('dashboard-config').classList.remove('hidden');notice('数据源已更新。请点击「保存并添加到页面」将新配置永久保存。');}load();};
 // Feishu dashboard components have a separate Create / Config lifecycle.
 // A raw iframe that only reads bitable.base data will stay in the plugin preview
 // dialog forever. In these modes, saveConfig is REQUIRED to add the component
@@ -56,6 +56,7 @@ function applySavedConfig(saved) {
     if (typeof source[key] === 'string' && source[key].trim()) state.config[key] = source[key].trim();
   }
   if (typeof source.baseToken === 'string' && source.baseToken) state.config.baseToken = source.baseToken;
+  $('base-token').value = state.config.baseToken||'';
   $('table-experts').value = state.config.experts;
   $('table-careers').value = state.config.careers;
   $('table-relations').value = state.config.relations;
@@ -73,6 +74,7 @@ async function saveDashboardComponent() {
     // Official Feishu dashboard plugin examples allow empty dataConditions when
     // all custom settings and data fetching are handled by the plugin.
     state.config.baseToken=await detectBaseTokenForConfig(state.config);
+    if(!state.config.baseToken){throw new Error('无法自动确定专家库 Base 标识。请在「数据设置」中填写私有飞书多维表格链接 /base/ 后的一段标识，再保存。');}
     await dashboard.saveConfig({
       dataConditions: [],
       customConfig: { version: 2, tables: { ...state.config } }
