@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { toneFor, initials, matches, endpoints, nodeKey, edgeKey, formatDate, avatarData, adjacency } from '../src/ui-model.js';
+import { showcase } from '../src/showcase.js';
+test('presentation identifiers cannot collide between nodes and edges',()=>{assert.notEqual(nodeKey('R1'),edgeKey({id:'R1'},0));});
+test('visual arrows correctly reverse B to A',()=>{assert.deepEqual(endpoints({a:'1',b:'2',direction:'ba'}),{source:'person:2',target:'person:1'});assert.deepEqual(endpoints({a:'1',b:'2',direction:'ab'}),{source:'person:1',target:'person:2'});});
+test('search includes ID, name, domain and current identity',()=>{const p={id:'P001',name:'同名',domain:'结构',current:'院长'};for(const q of ['p001','同名','结构','院长',' '])assert.ok(matches(p,q));assert.equal(matches(p,'不存在'),false);});
+test('same-name people retain distinct stable keys',()=>{const a={id:'P001',name:'同名'},b={id:'P002',name:'同名'};assert.notEqual(nodeKey(a.id),nodeKey(b.id));assert.deepEqual(toneFor(a),toneFor({...a,current:'新身份'}));});
+test('avatar SVG escapes untrusted name characters and uses no remote asset',()=>{const uri=avatarData({id:'P001',name:'<svg onload=alert(1)>'});const xml=decodeURIComponent(uri.split(',')[1]);assert.ok(uri.startsWith('data:image/svg+xml'));assert.ok(xml.includes('&lt;'));assert.ok(!xml.includes('onload'));assert.equal(initials('😀测试'),'😀');});
+test('related-person list deduplicates multiple relationships',()=>{const d={persons:[{id:'A'},{id:'B'}],edges:[{id:'1',a:'A',b:'B'},{id:'2',a:'A',b:'B'}]};assert.equal(adjacency(d,'A').length,1);});
+test('date rendering preserves text and treats an empty value as unknown',()=>{assert.equal(formatDate('2026-10-18'),'2026-10-18');assert.equal(formatDate(null),'未记录');assert.ok(!formatDate(1792314000000).includes('1792314000000'));});
+test('showcase is explicit and self-contained, with unique fictional IDs',()=>{const d=showcase();assert.equal(d.persons.length,9);assert.equal(d.edges.length,11);assert.equal(new Set(d.persons.map(p=>p.id)).size,9);for(const e of d.edges){assert.ok(d.persons.some(p=>p.id===e.a));assert.ok(d.persons.some(p=>p.id===e.b));assert.match(e.note,/虚构/);}});

@@ -1,96 +1,53 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="referrer" content="no-referrer" />
-    <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; form-action 'none'" />
-    <title>专家关系图谱 · 飞书</title>
-  </head>
-  <body>
-    <div id="app">
-      <header class="topbar">
-        <div class="brand">
-          <div class="brand-icon" aria-hidden="true">✳</div>
-          <div><h1>专家关系图谱</h1><p>EXPERT RELATIONSHIP NETWORK</p></div>
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" /><meta name="color-scheme" content="light" />
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <title>专家关系图谱</title>
+</head>
+<body>
+<!-- Design hierarchy: network first, contextual controls second, diagnostics third.
+     Retain Feishu's blue identity. No external fonts, assets, analytics or stored records. -->
+<div id="app">
+  <header class="app-header">
+    <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="m8 9 16 3-8 13L8 9Z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="9" r="4" fill="currentColor"/><circle cx="24" cy="12" r="3.5" fill="currentColor"/><circle cx="16" cy="25" r="3" fill="currentColor"/></svg></div><div><h1>专家关系图谱</h1><p>PEOPLE, CONNECTED.</p></div></div>
+    <div class="header-counts" aria-label="网络统计"><span><strong id="people-count">—</strong> 位人员</span><i></i><span><strong id="edge-count">—</strong> 条关系</span></div>
+    <div class="header-actions"><span id="source-badge" class="source-badge">未连接</span><button id="settings-btn" class="icon-btn" title="数据设置" aria-label="数据设置" data-icon="settings"></button><button id="reload-btn" class="icon-btn" title="刷新数据" aria-label="刷新数据" data-icon="refresh"></button></div>
+  </header>
+  <section id="dashboard-config" class="config-banner" hidden><div><strong id="dashboard-config-title">保存图谱到飞书</strong><p>数据源确认后保存一次；以后打开页面即可查看。</p></div><button id="dashboard-save-btn" class="primary-btn">保存并添加到页面</button></section>
+  <section id="notice" class="notice" role="status" hidden></section>
+  <main class="workspace">
+    <aside class="control-dock" aria-label="探索和路径查询">
+      <div class="dock-intro"><span class="eyebrow">你的关系网络</span><h2>从一个人，<br>发现更多连接<span class="accent-dot">。</span></h2></div>
+      <div class="control-card">
+        <div class="tabs" role="tablist" aria-label="图谱工具"><button id="explore-tab" role="tab" aria-selected="true" aria-controls="explore-panel" class="active">探索网络</button><button id="path-tab" role="tab" aria-selected="false" aria-controls="path-panel">寻找路径</button></div>
+        <div id="explore-panel" role="tabpanel" aria-labelledby="explore-tab">
+          <label class="search-box"><span data-icon="search" aria-hidden="true"></span><input id="search" type="search" placeholder="搜索姓名、编号或领域" aria-label="搜索姓名、编号或领域" autocomplete="off" /><kbd>/</kbd></label>
+          <div class="list-heading"><span>人员</span><span id="search-count">0</span></div>
+          <div id="people-list" class="people-list" aria-label="人员列表"></div>
+          <p id="search-empty" class="quiet-empty" hidden>没有找到匹配的人员</p>
         </div>
-        <div class="top-actions">
-          <span id="source-badge" class="source-badge">等待连接</span>
-          <button id="settings-btn" type="button" class="btn btn-ghost">数据设置</button>
-          <button id="reload-btn" type="button" class="btn btn-primary">刷新数据</button>
-        </div>
-      </header>
-      <section id="dashboard-config" class="dashboard-config hidden" aria-label="保存飞书图谱组件">
-        <div>
-          <strong id="dashboard-config-title">首次添加 · 专家关系图谱</strong>
-          <p>请确认三张飞书数据表已经正确关联。点击右侧按钮后，插件将保存为应用页面中的固定组件。</p>
-        </div>
-        <button id="dashboard-save-btn" type="button" class="btn btn-primary">保存并添加到页面</button>
-      </section>
-      <section id="notice" class="notice" role="status"></section>
-      <section class="stats" aria-label="图谱统计">
-        <div class="metric"><span>人员节点</span><strong id="stat-people">—</strong></div>
-        <div class="metric"><span>已展示关系</span><strong id="stat-relations">—</strong></div>
-        <div class="metric"><span>无法匹配的关系</span><strong id="stat-hidden">—</strong></div>
-        <div class="metric"><span>当前数据源</span><strong id="stat-source" class="stat-source">未连接</strong></div>
-      </section>
-      <div class="workspace">
-        <aside class="controls">
-          <section class="panel">
-            <h2>查找人员</h2>
-            <label class="field-label" for="search">姓名 / 人员ID / 研究方向</label>
-            <input id="search" type="search" placeholder="输入关键词，高亮匹配节点" />
-          </section>
-          <section class="panel">
-            <div class="section-title"><h2>最短关系路径</h2><span class="pill">按关系跳数</span></div>
-            <label class="field-label" for="from">起点人员</label>
-            <select id="from"><option value="">选择起点</option></select>
-            <label class="field-label" for="to">终点人员</label>
-            <select id="to"><option value="">选择终点</option></select>
-            <button id="path-btn" type="button" class="btn btn-primary btn-full">查询最短路径 →</button>
-            <p id="path-result" class="path-result" aria-live="polite">选择两位人员，计算关系路径。</p>
-            <button id="clear-path" type="button" class="btn btn-ghost btn-full">清除高亮</button>
-          </section>
-          <section class="panel legend">
-            <h2>图例</h2>
-            <p><i class="line valid"></i> 已记录的人物关系</p>
-            <p><i class="line directed"></i> 带箭头表示有向关系</p>
-            <p class="small-help">该图仅呈现已记录的人际关系；共同单位不自动代表互相认识。</p>
-          </section>
-        </aside>
-        <main class="graph-panel">
-          <div class="graph-toolbar">
-            <div><strong>关系网络</strong><span id="graph-subtitle">尚未载入数据</span></div>
-            <div class="graph-tools">
-              <button id="fit-btn" type="button" class="btn btn-compact">适配画布</button>
-              <button id="layout-btn" type="button" class="btn btn-compact">重新布局</button>
-            </div>
-          </div>
-          <div id="graph" role="img" aria-label="可点击和拖动的专家关系网络"></div>
-          <div id="empty-graph" class="empty-graph">
-            <div class="empty-icon">◎</div>
-            <h2 id="empty-title">尚未读取专家数据</h2>
-            <p id="empty-text">请从飞书应用内打开，或先查看完全虚构的演示数据。</p>
-            <button id="demo-btn" class="btn btn-outline" type="button">查看三人演示</button>
-          </div>
-          <div class="graph-footer"><span>拖动节点 · 滚轮缩放 · 点击查看详情</span><span id="graph-warning"></span></div>
-        </main>
-        <aside class="details" aria-label="详情面板">
-          <div class="detail-heading"><h2>详细信息</h2><button id="detail-close" type="button" class="icon-button" aria-label="关闭详情">×</button></div>
-          <div id="detail-content" class="detail-content"><div class="detail-placeholder">选择一个节点或关系连线查看信息。</div></div>
-        </aside>
-      </div>
-      <div id="settings" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="数据表配置">
-        <div class="modal">
-          <h2>飞书数据表配置</h2>
-          <p class="small-help">默认兼容你当前的三张表。只在本次页面会话中使用这些名称，不写入浏览器本地存储。</p>
-          <label for="base-token">多维表格 Base 标识（从飞书私有表格 URL 的 /base/ 后复制）</label><input id="base-token" type="text" autocomplete="off" placeholder="例如 WIFLb..." /><p class="small-help">只存储表格标识，不是密钥。请不要填写整个公开网址。</p><label for="table-experts">专家信息表名称</label><input id="table-experts" type="text" value="专家信息表" />
-          <label for="table-careers">身份与履历表名称</label><input id="table-careers" type="text" value="身份和履历表" />
-          <label for="table-relations">人员关系表名称</label><input id="table-relations" type="text" value="人员关系表" />
-          <div class="modal-actions"><button id="settings-cancel" class="btn btn-ghost">取消</button><button id="settings-save" class="btn btn-primary">保存并读取</button></div>
+        <div id="path-panel" role="tabpanel" aria-labelledby="path-tab" hidden>
+          <p class="panel-caption">找到两个人之间，最少经过的连接。</p>
+          <div class="route-inputs"><label><span class="route-dot">A</span><span class="field-wrap"><span class="field-label">起点人员</span><select id="from" aria-label="起点人员"><option value="">选择起点</option></select></span></label><div class="swap-row"><span></span><button id="swap-btn" class="icon-btn" data-icon="swap" aria-label="交换起点和终点" title="交换起点和终点"></button></div><label><span class="route-dot end">B</span><span class="field-wrap"><span class="field-label">终点人员</span><select id="to" aria-label="终点人员"><option value="">选择终点</option></select></span></label></div>
+          <button id="path-btn" class="primary-btn full"><span>查找最短路径</span><span data-icon="arrow" aria-hidden="true"></span></button>
+          <div id="path-result" class="path-result" aria-live="polite"><p>也可以点击图上的人物，设为起点或终点。</p></div>
         </div>
       </div>
-    </div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
-</html>
+      <div class="dock-foot"><span data-icon="cursor" aria-hidden="true"></span><p>点选人物查看档案<br><span>拖动节点 · 滚轮缩放</span></p></div>
+    </aside>
+    <section class="canvas-shell" aria-label="人物关系网络">
+      <div class="canvas-top"><div class="canvas-heading"><span class="live-dot"></span><span id="view-label">全部关系</span></div><button id="reset-btn" class="text-btn" hidden><span data-icon="close" aria-hidden="true"></span>退出聚焦</button></div>
+      <div id="graph" role="img" aria-label="关系图；也可通过左侧人员列表查看人物及相邻关系"></div>
+      <div id="empty-graph" class="empty-graph"><div class="empty-orbit" aria-hidden="true"><i></i><i></i><i></i><span data-icon="network"></span></div><span class="eyebrow">让关系清晰可见</span><h2 id="empty-title">连接你的专家库</h2><p id="empty-text">在飞书应用内打开，自动呈现人员与关系。</p><button id="demo-btn" class="secondary-btn">体验虚构演示 <span data-icon="arrow" aria-hidden="true"></span></button></div>
+      <div class="canvas-bottom"><div class="canvas-legend"><span class="legend-line"></span><span>已记录的关系</span><span class="legend-arrow">→</span><span>有向关系</span></div><div class="canvas-tools"><button id="zoom-out" class="icon-btn" data-icon="minus" aria-label="缩小" title="缩小"></button><span id="zoom-value">100%</span><button id="zoom-in" class="icon-btn" data-icon="plus" aria-label="放大" title="放大"></button><i></i><button id="fit-btn" class="icon-btn" data-icon="fit" aria-label="适配画布" title="适配画布"></button><button id="layout-btn" class="icon-btn" data-icon="layout" aria-label="重新布局" title="重新布局"></button></div></div>
+    </section>
+    <aside id="details" class="details" aria-label="详情" hidden><div class="detail-heading"><span class="eyebrow" id="detail-kind">人员档案</span><button id="detail-close" class="icon-btn" data-icon="close" aria-label="关闭详情"></button></div><div id="detail-content"></div></aside>
+  </main>
+  <footer class="statusbar"><span class="status-left"><span id="sync-dot" class="sync-dot"></span><span id="sync-text" aria-live="polite">等待连接</span></span><button id="diagnostics-btn" class="text-btn" hidden></button><span class="status-right">关系以表内记录为准<span class="version">v0.2</span></span></footer>
+</div>
+<dialog id="settings" class="settings-dialog" aria-labelledby="settings-title"><form id="settings-form"><div class="dialog-heading"><div><span class="eyebrow">数据源</span><h2 id="settings-title">连接飞书多维表格</h2></div><button id="settings-cancel" type="button" class="icon-btn" data-icon="close" aria-label="关闭数据设置"></button></div><p id="settings-help" class="panel-caption">沿用已保存的数据源；无需重新建立三张表。</p><label class="form-field">Base 标识<input id="base-token" type="text" autocomplete="off" placeholder="复制 /base/ 后、? 前的标识" /><small>这是表格标识，不是访问密钥。</small></label><label class="form-field">专家信息表<input id="table-experts" type="text" required value="专家信息表" /></label><label class="form-field">身份与履历表<input id="table-careers" type="text" value="身份和履历表" /></label><label class="form-field">人员关系表<input id="table-relations" type="text" required value="人员关系表" /></label><div class="dialog-footer"><span data-icon="shield" aria-hidden="true"></span><small>仅在飞书授权环境中读取</small><button id="settings-save" type="submit" class="primary-btn">应用设置</button></div></form></dialog>
+<dialog id="diagnostics" class="settings-dialog" aria-labelledby="diagnostics-title"><div class="dialog-heading"><h2 id="diagnostics-title">数据读取详情</h2><button id="diagnostics-close" class="icon-btn" data-icon="close" aria-label="关闭数据诊断"></button></div><div id="diagnostics-content"></div></dialog>
+<script type="module" src="/src/main.js"></script>
+</body></html>
