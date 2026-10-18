@@ -1,6 +1,6 @@
 import cytoscape from 'cytoscape';
 import { bitable, DashboardState } from '@lark-base-open/js-sdk';
-import {readFeishu, detectBaseTokenForConfig} from './feishu.js';
+import {readFeishu, detectBaseTokenForConfig, captureTableBindings} from './feishu.js';
 import {normalizeGraph,visibleEdges,shortestPath,fakeDemo} from './graph-data.js';
 import './style.css';
 const $=id=>document.getElementById(id);
@@ -56,6 +56,7 @@ function applySavedConfig(saved) {
     if (typeof source[key] === 'string' && source[key].trim()) state.config[key] = source[key].trim();
   }
   if (typeof source.baseToken === 'string' && source.baseToken) state.config.baseToken = source.baseToken;
+  if (source.tableBindings && typeof source.tableBindings === 'object') state.config.tableBindings=source.tableBindings;
   $('base-token').value = state.config.baseToken||'';
   $('table-experts').value = state.config.experts;
   $('table-careers').value = state.config.careers;
@@ -74,6 +75,7 @@ async function saveDashboardComponent() {
     // Official Feishu dashboard plugin examples allow empty dataConditions when
     // all custom settings and data fetching are handled by the plugin.
     state.config.baseToken=await detectBaseTokenForConfig(state.config);
+    state.config.tableBindings=await captureTableBindings(state.config);
     if(!state.config.baseToken){throw new Error('无法自动确定专家库 Base 标识。请在「数据设置」中填写私有飞书多维表格链接 /base/ 后的一段标识，再保存。');}
     await dashboard.saveConfig({
       dataConditions: [],
