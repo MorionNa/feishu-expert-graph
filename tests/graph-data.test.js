@@ -23,7 +23,7 @@ test('every recorded edge is displayed and used in path finding', () => {
   const data = fakeDemo();
   assert.equal(data.edges.length, 3);
   assert.equal(shortestPath(data.persons, data.edges, 'P0001', 'P0003').hops, 1);
-  assert.equal(shortestPath(data.persons, data.edges, 'P0003', 'P0002'), null);
+  assert.equal(shortestPath(data.persons, data.edges, 'P0003', 'P0002').hops, 2);
 });
 test('career current fallback and unknown status fail closed', () => {
   const p=[{recordId:'recP',fields:{人员ID:'P0001',姓名:'李某'}}];
