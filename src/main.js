@@ -1,4 +1,5 @@
 import cytoscape from 'cytoscape';
+import { bitable, DashboardState } from '@lark-base-open/js-sdk';
 import {readFeishu} from './feishu.js';
 import {normalizeGraph,visibleEdges,shortestPath,fakeDemo} from './graph-data.js';
 import './style.css';
@@ -35,24 +36,89 @@ async function load(){
 }
 function path(){if(!state.cy||!$('from').value||!$('to').value){text('path-result','请选择起点和终点。');return;}const edges=state.data.edges;const result=shortestPath(state.data.persons,edges,$('from').value,$('to').value);state.cy.elements().removeClass('dim highlighted');if(!result){text('path-result','未找到符合当前条件的路径。');return;}text('path-result',result.hops+'跳：'+result.nodes.map(id=>state.data.persons.find(p=>p.id===id)?.name||id).join(' → '));state.cy.elements().addClass('dim');for(const id of result.nodes)state.cy.getElementById(id).removeClass('dim').addClass('highlighted');state.cy.edges().forEach(e=>{if(result.edges.includes(edges[e.data('edgeIndex')]?.id))e.removeClass('dim').addClass('highlighted');});}
 $('reload-btn').onclick=load;$('demo-btn').onclick=()=>render(fakeDemo(),true);$('path-btn').onclick=path;$('clear-path').onclick=()=>{state.cy?.elements().removeClass('dim highlighted');text('path-result','已清除高亮。');};$('fit-btn').onclick=()=>state.cy?.fit(undefined,45);$('layout-btn').onclick=()=>state.cy?.layout({name:'cose',animate:true}).run();$('detail-close').onclick=()=>details(null);$('search').oninput=()=>{if(!state.cy)return;const q=$('search').value.trim().toLowerCase();state.cy.elements().removeClass('dim');if(q)for(const p of state.data.persons)if(![p.name,p.id,p.domain].some(s=>s.toLowerCase().includes(q)))state.cy.getElementById(p.id).addClass('dim');};$('settings-btn').onclick=()=>{$('settings').classList.remove('hidden');};$('settings-cancel').onclick=()=>{$('settings').classList.add('hidden');};$('settings-save').onclick=()=>{state.config.experts=$('table-experts').value;state.config.careers=$('table-careers').value;state.config.relations=$('table-relations').value;$('settings').classList.add('hidden');load();};
-// The Feishu application embeds this page as an iframe. Start the SDK read automatically,
-// and retry on returning to the page if the previously loaded graph may be stale.
-// Never silently display real data when opened as a public GitHub Pages page.
+// Feishu dashboard components have a separate Create / Config lifecycle.
+// A raw iframe that only reads bitable.base data will stay in the plugin preview
+// dialog forever. In these modes, saveConfig is REQUIRED to add the component
+// permanently to the application canvas.
 const isDemo = new URLSearchParams(location.search).get('demo') === '1';
 const insideHost = window.parent !== window;
+const dashboard = bitable.dashboard;
 function refreshOnReturn() {
   if (!insideHost || isDemo || state.loading || !state.lastFetchAt) return;
   if (Date.now() - state.lastFetchAt > 30000) load();
 }
-if (isDemo) {
-  render(fakeDemo(),true);
-} else if (insideHost) {
-  notice('即将自动读取飞书专家信息与关系…');
-  setTimeout(load,300);
+function applySavedConfig(saved) {
+  const custom = saved?.customConfig;
+  if (!custom || typeof custom !== 'object') return;
+  const source = custom.tables && typeof custom.tables === 'object' ? custom.tables : custom;
+  for (const key of ['experts','careers','relations']) {
+    if (typeof source[key] === 'string' && source[key].trim()) state.config[key] = source[key].trim();
+  }
+  $('table-experts').value = state.config.experts;
+  $('table-careers').value = state.config.careers;
+  $('table-relations').value = state.config.relations;
+}
+async function saveDashboardComponent() {
+  const button=$('dashboard-save-btn');
+  if (!dashboard || typeof dashboard.saveConfig !== 'function') {
+    notice('当前飞书环境没有提供仪表盘插件保存接口。请通过应用模式「添加组件 → 插件 → 添加自定义插件」启动此页面。',true);
+    return;
+  }
+  button.disabled=true;
+  text('dashboard-save-btn','正在保存…');
+  try {
+    // The relationship graph reads three raw tables by SDK, not an aggregated chart.
+    // Official Feishu dashboard plugin examples allow empty dataConditions when
+    // all custom settings and data fetching are handled by the plugin.
+    await dashboard.saveConfig({
+      dataConditions: [],
+      customConfig: { version: 1, tables: { ...state.config } }
+    });
+    notice('配置已提交给飞书。如弹窗没有自动关闭，请关闭它并检查应用页面画布中是否出现图谱组件。');
+    text('dashboard-save-btn','已保存到飞书');
+  } catch (err) {
+    notice('飞书未能保存此插件：'+(err?.message||String(err))+'。请截图此错误信息。',true);
+    text('dashboard-save-btn','重试保存到页面');
+    button.disabled=false;
+  }
+}
+$('dashboard-save-btn').addEventListener('click',saveDashboardComponent);
+
+async function initializeFeishuHost() {
+  if (isDemo) { render(fakeDemo(),true); return; }
+  if (!insideHost) {
+    notice('这里是公开的插件程序页面，不含专家数据。请在飞书应用的「专家关系图谱」组件中使用。');
+    return;
+  }
+  const mode=dashboard?.state;
+  const editing = mode === DashboardState.Create || mode === DashboardState.Config;
+  if (editing) {
+    $('dashboard-config').classList.remove('hidden');
+    text('dashboard-config-title',mode===DashboardState.Create?'首次添加：保存图谱到飞书应用':'修改图谱插件配置');
+  }
+  // Viewing an existing component must restore the configuration saved during
+  // the creation lifecycle, rather than rely on previously typed URL settings.
+  if (mode !== DashboardState.Create && typeof dashboard?.getConfig === 'function') {
+    try { applySavedConfig(await dashboard.getConfig()); }
+    catch (err) { /* Manual default table names remain usable. */ }
+  }
+  notice(editing
+    ? '图谱数据将自动加载。确认显示正确后，请点击「保存并添加到页面」完成飞书组件创建。'
+    : '正在自动读取飞书专家信息与关系…');
+  await load();
+  // When the host detects changes, re-read live tables. No token or record is persisted.
+  if (!editing && typeof dashboard?.onDataChange === 'function') {
+    dashboard.onDataChange(()=>{ if (!state.loading) load(); });
+  }
+  if (!editing && typeof dashboard?.onConfigChange === 'function') {
+    dashboard.onConfigChange(async ()=>{
+      try { applySavedConfig(await dashboard.getConfig()); } catch {}
+      if (!state.loading) load();
+    });
+  }
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible') refreshOnReturn();
   });
   window.addEventListener('focus',refreshOnReturn);
-} else {
-  notice('这里是公开的插件程序页面，不含专家数据。请在飞书应用的「专家关系图谱」组件中使用。');
 }
+initializeFeishuHost().catch(err=>notice('插件初始化失败：'+(err?.message||err),true));
