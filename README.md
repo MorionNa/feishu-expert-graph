@@ -64,3 +64,7 @@
 现有保存版图谱之前报 `读取数据表元信息失败: this api is only supported in config mode`，原因是 View 态调用 `getTableMetaList/getFieldMetaList`。现在在 Create/Config 模式执行 `captureTableBindings`，将三张表的真实 `tableId` 与字段 `fieldId/name` 保存到图谱的 `customConfig.tables.tableBindings`；展示模式不再调用这些元信息 API，而是尝试直接通过保存的 ID 读取记录。**必须回到图谱组件编辑配置重新点击「保存并添加到页面」一次**，旧配置不含 ID 映射，无法自动升级。
 
 如果 View 态仍报 `getRecordsByPage: this api is only supported in config mode`，说明该宿主连原始记录 API 都受限，不能继续用前端 SDK 绕过权限。必须改为飞书正式授权的服务端 OpenAPI 或验证仪表盘聚合 `dashboard.getData` 能否无损传递关系信息。不要将专家库导出放在 GitHub Pages，也不要公开 access_token。
+
+## 新增「联系方式」字段
+
+在「专家信息表」创建字段 `联系方式` 后，图谱的人物详情会按需展示这个字段（不在图上全局显示）。由于正式展示模式采用配置时保存的字段 ID 映射，**新增字段后必须进入飞书图谱组件编辑配置，重新点击「保存组件配置」一次**；以后只修改已有联系方式的内容无需重复保存组件。该字段可包含非公开个人联络信息，务必单独校验飞书的应用访问权限和源表权限；仅在详情面板隐藏并不构成权限隔离。
