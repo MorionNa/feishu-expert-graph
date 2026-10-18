@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cellText, linkedRecordIds, normalizeGraph, shortestPath, fakeDemo } from '../src/graph-data.js';
+import { cellText, contactText, linkedRecordIds, normalizeGraph, shortestPath, fakeDemo } from '../src/graph-data.js';
 
 test('cell value parses rich text, options, lookup and link', () => {
   assert.equal(cellText([{text:'教授'},{text:'院长'}]), '教授、院长');
@@ -49,4 +49,13 @@ test('handles alternate Feishu link shapes and provides explicit diagnostics', (
   assert.equal(result.diagnostics.relationsResolved,1);
   assert.equal(result.diagnostics.relationsUnresolved,1);
   assert.equal(result.edges.length,1);
+});
+
+test('contact fields support text, phone objects, and empty values', () => {
+  assert.equal(contactText('13800000000'), '13800000000');
+  assert.equal(contactText({ phoneNumber: '13800000000' }), '13800000000');
+  assert.equal(contactText([{ text: 'demo@example.test' }]), 'demo@example.test');
+  assert.equal(contactText(null), '');
+  const data = normalizeGraph([{ recordId:'r1', fields:{ 人员ID:'P001', 姓名:'测试专家', 联系方式:{ phoneNumber:'13800000000' } } }], []);
+  assert.equal(data.persons[0].contact, '13800000000');
 });
